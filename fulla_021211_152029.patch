@@ -1,0 +1,855 @@
+diff -rupN -X /home/droidzone/android/kernel/exclude.opts bravo_2.6.35_gb-mr/arch/arm/mach-msm/qdsp6/amrnb_in.c bravo_2.6.35_gb_mr_works/arch/arm/mach-msm/qdsp6/amrnb_in.c
+--- bravo_2.6.35_gb-mr/arch/arm/mach-msm/qdsp6/amrnb_in.c	1970-01-01 05:30:00.000000000 +0530
++++ bravo_2.6.35_gb_mr_works/arch/arm/mach-msm/qdsp6/amrnb_in.c	2011-12-02 01:12:19.844902099 +0530
+@@ -0,0 +1,302 @@
++/*
++ * Copyright (C) 2009 Google, Inc.
++ * Copyright (C) 2009 HTC Corporation
++ * Copyright (c) 2010, Code Aurora Forum. All rights reserved.
++ *
++ * This software is licensed under the terms of the GNU General Public
++ * License version 2, as published by the Free Software Foundation, and
++ * may be copied, distributed, and modified under those terms.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ */
++
++#include <linux/slab.h>
++#include <linux/fs.h>
++#include <linux/module.h>
++#include <linux/miscdevice.h>
++#include <linux/mutex.h>
++#include <linux/sched.h>
++#include <linux/wait.h>
++#include <linux/uaccess.h>
++
++#include <linux/msm_audio.h>
++//#include <linux/msm_audio_amrnb.h>
++#include <mach/msm_qdsp6_audio.h>
++#include "dal_audio_format.h"
++//#include <mach/debug_mm.h>
++
++
++#define AUDIO_SET_INCALL        _IOW(AUDIO_IOCTL_MAGIC, 19, struct msm_voicerec_mode)
++#define AUDIO_INCALL_SUPPORTED  _IOW(AUDIO_IOCTL_MAGIC, 20, unsigned)
++#define AUDIO_FLAG_INCALL_MIXED  2
++
++#define AUDIO_SET_STREAM_CONFIG   _IOW(AUDIO_IOCTL_MAGIC, 80, \
++                                struct msm_audio_stream_config)
++#define AUDIO_GET_STREAM_CONFIG   _IOR(AUDIO_IOCTL_MAGIC, 81, \
++                                struct msm_audio_stream_config)
++
++
++struct msm_audio_amrnb_enc_config_v2 {
++        uint32_t band_mode;
++        uint32_t dtx_enable;
++        uint32_t frame_format;
++};
++
++struct amrnb {
++	struct mutex lock;
++	struct msm_audio_amrnb_enc_config_v2 cfg;
++	struct msm_audio_stream_config str_cfg;
++	struct audio_client *audio_client;
++	struct msm_voicerec_mode voicerec_mode;
++};
++
++struct audio_client *q6audio_open_amrnb(uint32_t bufsz, uint32_t enc_mode,
++                                        uint32_t dtx_mode_enable,
++                                        uint32_t flags, uint32_t acdb_id);
++
++
++
++static long q6_amrnb_in_ioctl(struct file *file, unsigned int cmd,
++				unsigned long arg)
++{
++	struct amrnb *amrnb = file->private_data;
++	int rc = 0;
++
++	mutex_lock(&amrnb->lock);
++	switch (cmd) {
++	case AUDIO_SET_VOLUME:
++		break;
++	case AUDIO_GET_STATS:
++	{
++		struct msm_audio_stats stats;
++		memset(&stats, 0, sizeof(stats));
++		if (copy_to_user((void *) arg, &stats, sizeof(stats)))
++			return -EFAULT;
++		return 0;
++	}
++	case AUDIO_START:
++	{
++		uint32_t acdb_id;
++		if (arg == 0) {
++			acdb_id = 0;
++		} else {
++			if (copy_from_user(&acdb_id, (void *) arg,
++						sizeof(acdb_id))) {
++				rc = -EFAULT;
++				break;
++			}
++		}
++		if (amrnb->audio_client) {
++			rc = -EBUSY;
++			break;
++		} else {
++			amrnb->audio_client = q6audio_open_amrnb(
++					amrnb->str_cfg.buffer_size,
++					amrnb->cfg.band_mode,
++					amrnb->cfg.dtx_enable,
++					amrnb->voicerec_mode.rec_mode,
++					acdb_id);
++			if (!amrnb->audio_client) {
++				kfree(amrnb);
++				rc = -ENOMEM;
++				break;
++			}
++		}
++		break;
++	}
++	case AUDIO_STOP:
++		break;
++	case AUDIO_FLUSH:
++		break;
++	case AUDIO_SET_INCALL: {
++		if (copy_from_user(&amrnb->voicerec_mode,
++			(void *)arg, sizeof(struct msm_voicerec_mode)))
++			rc = -EFAULT;
++
++		if (amrnb->voicerec_mode.rec_mode != AUDIO_FLAG_READ
++				&& amrnb->voicerec_mode.rec_mode !=
++				AUDIO_FLAG_INCALL_MIXED) {
++			amrnb->voicerec_mode.rec_mode = AUDIO_FLAG_READ;
++			pr_err("[%s:%s] Invalid rec_mode\n", __FILE__,
++					__func__);
++			rc = -EINVAL;
++		}
++		break;
++	}
++	case AUDIO_GET_STREAM_CONFIG:
++		if (copy_to_user((void *)arg, &amrnb->str_cfg,
++			sizeof(struct msm_audio_stream_config)))
++			rc = -EFAULT;
++		break;
++	case AUDIO_SET_STREAM_CONFIG:
++		if (copy_from_user(&amrnb->str_cfg, (void *)arg,
++			sizeof(struct msm_audio_stream_config))) {
++			rc = -EFAULT;
++			break;
++		}
++
++		if (amrnb->str_cfg.buffer_size < 768) {
++			pr_err("[%s:%s] Buffer size too small\n", __FILE__,
++					__func__);
++			rc = -EINVAL;
++			break;
++		}
++
++		if (amrnb->str_cfg.buffer_count != 2)
++			pr_info("[%s:%s] Buffer count set to 2\n", __FILE__,
++					__func__);
++		break;
++	case AUDIO_SET_AMRNB_ENC_CONFIG:
++		if (copy_from_user(&amrnb->cfg, (void *) arg,
++			sizeof(struct msm_audio_amrnb_enc_config_v2)))
++			rc = -EFAULT;
++		break;
++	case AUDIO_GET_AMRNB_ENC_CONFIG:
++		if (copy_to_user((void *) arg, &amrnb->cfg,
++				 sizeof(struct msm_audio_amrnb_enc_config_v2)))
++			rc = -EFAULT;
++		break;
++
++	default:
++		rc = -EINVAL;
++	}
++
++	mutex_unlock(&amrnb->lock);
++	return rc;
++}
++
++static int q6_amrnb_in_open(struct inode *inode, struct file *file)
++{
++	struct amrnb *amrnb;
++	amrnb = kmalloc(sizeof(struct amrnb), GFP_KERNEL);
++	if (amrnb == NULL) {
++		pr_err("[%s:%s] Could not allocate memory for amrnb driver\n",
++				__FILE__, __func__);
++		return -ENOMEM;
++	}
++
++	mutex_init(&amrnb->lock);
++	file->private_data = amrnb;
++	amrnb->audio_client = NULL;
++	amrnb->str_cfg.buffer_size = 768;
++	amrnb->str_cfg.buffer_count = 2;
++	amrnb->cfg.band_mode = 7;
++	amrnb->cfg.dtx_enable  = 3;
++	amrnb->cfg.frame_format = ADSP_AUDIO_FORMAT_AMRNB_FS;
++	amrnb->voicerec_mode.rec_mode = AUDIO_FLAG_READ;
++
++	return 0;
++}
++
++static ssize_t q6_amrnb_in_read(struct file *file, char __user *buf,
++			   size_t count, loff_t *pos)
++{
++	struct audio_client *ac;
++	struct audio_buffer *ab;
++	const char __user *start = buf;
++	struct amrnb *amrnb = file->private_data;
++	int xfer = 0;
++	int res;
++
++	mutex_lock(&amrnb->lock);
++	ac = amrnb->audio_client;
++	if (!ac) {
++		res = -ENODEV;
++		goto fail;
++	}
++#if 1 
++	while (count > xfer) {
++		ab = ac->buf + ac->cpu_buf;
++
++		if (ab->used)
++			wait_event(ac->wait, (ab->used == 0));
++
++		xfer = ab->actual_size;
++
++		if (copy_to_user(buf, ab->data, xfer)) {
++			res = -EFAULT;
++			goto fail;
++		}
++
++		buf += xfer;
++		count -= xfer;
++
++		ab->used = 1;
++		q6audio_read(ac, ab);
++		ac->cpu_buf ^= 1;
++	}
++#else
++        while (count > 0) {
++                ab = ac->buf + ac->cpu_buf;
++
++                if (ab->used)
++			 wait_event(ac->wait, (ab->used == 0));
++#if 0
++                        if (!wait_event_timeout(ac->wait, (ab->used == 0), 5*HZ)) {
++                                audio_client_dump(ac);
++                                pr_err("pcm_read: timeout. dsp dead?\n");
++                                q6audio_dsp_not_responding();
++                        }
++#endif
++                xfer = count;
++                if (xfer > ab->size)
++                        xfer = ab->size;
++
++                if (copy_to_user(buf, ab->data, xfer)) {
++                        res = -EFAULT;
++                        goto fail;
++                }
++
++                buf += xfer;
++                count -= xfer;
++
++                ab->used = 1;
++                q6audio_read(ac, ab);
++                ac->cpu_buf ^= 1;
++        }
++#endif
++
++	res = buf - start;
++fail:
++	mutex_unlock(&amrnb->lock);
++
++	return res;
++}
++
++static int q6_amrnb_in_release(struct inode *inode, struct file *file)
++{
++	int rc = 0;
++	struct amrnb *amrnb = file->private_data;
++
++	mutex_lock(&amrnb->lock);
++	if (amrnb->audio_client)
++		rc = q6audio_close(amrnb->audio_client);
++	mutex_unlock(&amrnb->lock);
++	kfree(amrnb);
++	return rc;
++}
++
++static const struct file_operations q6_amrnb_in_fops = {
++	.owner		= THIS_MODULE,
++	.open		= q6_amrnb_in_open,
++	.read		= q6_amrnb_in_read,
++	.release	= q6_amrnb_in_release,
++	.unlocked_ioctl	= q6_amrnb_in_ioctl,
++};
++
++struct miscdevice q6_amrnb_in_misc = {
++	.minor	= MISC_DYNAMIC_MINOR,
++	.name	= "msm_amr_in",
++	.fops	= &q6_amrnb_in_fops,
++};
++
++static int __init q6_amrnb_in_init(void)
++{
++	return misc_register(&q6_amrnb_in_misc);
++}
++
++device_initcall(q6_amrnb_in_init);
+diff -rupN -X /home/droidzone/android/kernel/exclude.opts bravo_2.6.35_gb-mr/arch/arm/mach-msm/qdsp6/pcm_in.c bravo_2.6.35_gb_mr_works/arch/arm/mach-msm/qdsp6/pcm_in.c
+--- bravo_2.6.35_gb-mr/arch/arm/mach-msm/qdsp6/pcm_in.c	2011-08-25 13:16:50.000000000 +0530
++++ bravo_2.6.35_gb_mr_works/arch/arm/mach-msm/qdsp6/pcm_in.c	2011-12-02 01:12:19.844902099 +0530
+@@ -21,28 +21,45 @@
+ #include <linux/sched.h>
+ #include <linux/wait.h>
+ #include <linux/uaccess.h>
++#include <linux/slab.h>
+ 
+ #include <linux/msm_audio.h>
+ 
+ #include <mach/msm_qdsp6_audio.h>
+ 
+-#define BUFSZ (256)
+ 
+-static DEFINE_MUTEX(pcm_in_lock);
+-static uint32_t sample_rate = 8000;
+-static uint32_t channel_count = 1;
+-static uint32_t buffer_size = BUFSZ;
+-static int pcm_in_opened = 0;
++#define AUDIO_SET_INCALL _IOW(AUDIO_IOCTL_MAGIC, 19, struct msm_voicerec_mode)
++#define AUDIO_FLAG_INCALL_MIXED       2
++
++#define AUDIO_GET_DEV_DRV_VER   _IOR(AUDIO_IOCTL_MAGIC, 56, unsigned)
++#define DEV_DRV_VER             (8250 << 16 | 1)
++
++struct pcm {
++	struct audio_client *ac;
++	uint32_t sample_rate;
++	uint32_t channel_count;
++	uint32_t buffer_size;
++	uint32_t rec_mode;
++};
++
++#define BUFSZ (256)
+ 
+ void audio_client_dump(struct audio_client *ac);
+ 
+ static long q6_in_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+ {
++	struct pcm *pcm = file->private_data;
+ 	int rc = 0;
+ 
+ 	switch (cmd) {
+ 	case AUDIO_SET_VOLUME:
+ 		break;
++        case AUDIO_GET_DEV_DRV_VER: {
++                unsigned int vers = DEV_DRV_VER;
++                if (copy_to_user((void *) arg, &vers, sizeof(vers)))
++                        rc = -EFAULT;
++                break;
++        }
+ 	case AUDIO_GET_STATS: {
+ 		struct msm_audio_stats stats;
+ 		memset(&stats, 0, sizeof(stats));
+@@ -61,17 +78,15 @@ static long q6_in_ioctl(struct file *fil
+ 			break;
+ 		}
+ 
+-		mutex_lock(&pcm_in_lock);
+-		if (file->private_data) {
++		if (pcm->ac) {
+ 			rc = -EBUSY;
+ 		} else {
+-			file->private_data = q6audio_open_pcm(
+-				buffer_size, sample_rate, channel_count,
+-				AUDIO_FLAG_READ, acdb_id);
+-			if (!file->private_data)
++			pcm->ac = q6audio_open_pcm(pcm->buffer_size,
++					pcm->sample_rate, pcm->channel_count,
++					pcm->rec_mode, acdb_id);
++			if (!pcm->ac)
+ 				rc = -ENOMEM;
+ 		}
+-		mutex_unlock(&pcm_in_lock);
+ 		break;
+ 	}
+ 	case AUDIO_STOP:
+@@ -96,17 +111,32 @@ static long q6_in_ioctl(struct file *fil
+ 			rc = -EINVAL;
+ 			break;
+ 		}
+-		sample_rate = config.sample_rate;
+-		channel_count = config.channel_count;
+-		buffer_size = config.buffer_size;
++
++		pcm->sample_rate = config.sample_rate;
++		pcm->channel_count = config.channel_count;
++		pcm->buffer_size = config.buffer_size;
++		break;
++	}
++	case AUDIO_SET_INCALL: {
++		struct msm_voicerec_mode voicerec_mode;
++		if (copy_from_user(&voicerec_mode, (void *)arg,
++			sizeof(struct msm_voicerec_mode)))
++			return -EFAULT;
++		if (voicerec_mode.rec_mode != AUDIO_FLAG_READ &&
++			voicerec_mode.rec_mode != AUDIO_FLAG_INCALL_MIXED) {
++			pcm->rec_mode = AUDIO_FLAG_READ;
++			pr_err("invalid rec_mode\n");
++			rc = -EINVAL;
++		} else
++			pcm->rec_mode = voicerec_mode.rec_mode;
+ 		break;
+ 	}
+ 	case AUDIO_GET_CONFIG: {
+ 		struct msm_audio_config config;
+-		config.buffer_size = buffer_size;
++		config.buffer_size = pcm->buffer_size;
+ 		config.buffer_count = 2;
+-		config.sample_rate = sample_rate;
+-		config.channel_count = channel_count;
++		config.sample_rate = pcm->sample_rate;
++		config.channel_count = pcm->channel_count;
+ 		config.unused[0] = 0;
+ 		config.unused[1] = 0;
+ 		config.unused[2] = 0;
+@@ -123,32 +153,33 @@ static long q6_in_ioctl(struct file *fil
+ 
+ static int q6_in_open(struct inode *inode, struct file *file)
+ {
+-	int rc;
++	struct pcm *pcm;
+ 
+ 	pr_info("pcm_in: open\n");
+-	mutex_lock(&pcm_in_lock);
+-	if (pcm_in_opened) {
+-		pr_err("pcm_in: busy\n");
+-		rc = -EBUSY;
+-	} else {
+-		pcm_in_opened = 1;
+-		rc = 0;
+-	}
+-	mutex_unlock(&pcm_in_lock);
+-	return rc;
++	pcm = kzalloc(sizeof(struct pcm), GFP_KERNEL);
++
++	if (!pcm)
++		return -ENOMEM;
++
++	pcm->channel_count = 1;
++	pcm->sample_rate = 8000;
++	pcm->buffer_size = BUFSZ;
++	pcm->rec_mode = AUDIO_FLAG_READ;
++	file->private_data = pcm;
++	return 0;
+ }
+ 
+ static ssize_t q6_in_read(struct file *file, char __user *buf,
+ 			  size_t count, loff_t *pos)
+ {
++	struct pcm *pcm = file->private_data;
+ 	struct audio_client *ac;
+ 	struct audio_buffer *ab;
+ 	const char __user *start = buf;
+ 	int xfer;
+ 	int res;
+ 
+-	mutex_lock(&pcm_in_lock);
+-	ac = file->private_data;
++	ac = pcm->ac;
+ 	if (!ac) {
+ 		res = -ENODEV;
+ 		goto fail;
+@@ -181,20 +212,18 @@ static ssize_t q6_in_read(struct file *f
+ 	}
+ fail:
+ 	res = buf - start;
+-	mutex_unlock(&pcm_in_lock);
+-
+ 	return res;
+ }
+ 
+ static int q6_in_release(struct inode *inode, struct file *file)
+ {
++
+ 	int rc = 0;
+-	mutex_lock(&pcm_in_lock);
+-	if (file->private_data)
+-		rc = q6audio_close(file->private_data);
+-	pcm_in_opened = 0;
+-	mutex_unlock(&pcm_in_lock);
+-	pr_info("pcm_in: release\n");
++	struct pcm *pcm = file->private_data;
++	if (pcm->ac)
++		rc = q6audio_close(pcm->ac);
++	kfree(pcm);
++	pr_info("pcm_out: release\n");
+ 	return rc;
+ }
+ 
+diff -rupN -X /home/droidzone/android/kernel/exclude.opts bravo_2.6.35_gb-mr/arch/arm/mach-msm/qdsp6/q6audio.c bravo_2.6.35_gb_mr_works/arch/arm/mach-msm/qdsp6/q6audio.c
+--- bravo_2.6.35_gb-mr/arch/arm/mach-msm/qdsp6/q6audio.c	2011-08-25 13:16:50.000000000 +0530
++++ bravo_2.6.35_gb_mr_works/arch/arm/mach-msm/qdsp6/q6audio.c	2011-12-02 01:12:19.844902099 +0530
+@@ -24,6 +24,7 @@
+ #include <linux/wakelock.h>
+ #include <linux/firmware.h>
+ #include <linux/miscdevice.h>
++#include <linux/slab.h>
+ 
+ #include "dal.h"
+ #include "dal_audio.h"
+@@ -394,6 +395,7 @@ static int audio_out_open(struct audio_c
+ 	return audio_ioctl(ac, &rpc, sizeof(rpc));
+ }
+ 
++#if 0 
+ static int audio_in_open(struct audio_client *ac, uint32_t bufsz,
+ 			 uint32_t rate, uint32_t channels)
+ {
+@@ -416,6 +418,34 @@ static int audio_in_open(struct audio_cl
+ 	TRACE("%p: open in\n", ac);
+ 	return audio_ioctl(ac, &rpc, sizeof(rpc));
+ }
++#else
++static int audio_in_open(struct audio_client *ac, uint32_t bufsz,
++                         uint32_t flags, uint32_t rate, uint32_t channels)
++{
++        struct adsp_open_command rpc;
++
++        memset(&rpc, 0, sizeof(rpc));
++
++        rpc.format.standard.format = ADSP_AUDIO_FORMAT_PCM;
++        rpc.format.standard.channels = channels;
++        rpc.format.standard.bits_per_sample = 16;
++        rpc.format.standard.sampling_rate = rate;
++        rpc.format.standard.is_signed = 1;
++        rpc.format.standard.is_interleaved = 1;
++
++        rpc.hdr.opcode = ADSP_AUDIO_IOCTL_CMD_OPEN_READ;
++        rpc.device = ADSP_AUDIO_DEVICE_ID_DEFAULT;
++        if (flags == AUDIO_FLAG_READ)
++                rpc.stream_context = ADSP_AUDIO_DEVICE_CONTEXT_RECORD;
++        else
++                rpc.stream_context = ADSP_AUDIO_DEVICE_CONTEXT_MIXED_RECORD;
++
++        rpc.buf_max_size = bufsz;
++
++        TRACE("%p: open in\n", ac);
++        return audio_ioctl(ac, &rpc, sizeof(rpc));
++}
++#endif
+ 
+ static int audio_mp3_open(struct audio_client *ac, uint32_t bufsz,
+ 			  uint32_t rate, uint32_t channels)
+@@ -1570,6 +1600,31 @@ done:
+ 	return 0;
+ }
+ 
++static void adie_rx_path_enable(uint32_t acdb_id)
++{
++        if (audio_rx_path_id) {
++                adie_enable();
++                adie_set_path(adie, audio_rx_path_id, ADIE_PATH_RX);
++                adie_set_path_freq_plan(adie, ADIE_PATH_RX, 48000);
++
++                adie_proceed_to_stage(adie, ADIE_PATH_RX,
++                                ADIE_STAGE_DIGITAL_READY);
++                adie_proceed_to_stage(adie, ADIE_PATH_RX,
++                                ADIE_STAGE_DIGITAL_ANALOG_READY);
++        }
++}
++
++static void q6_rx_path_enable(int reconf, uint32_t acdb_id)
++{
++        audio_update_acdb(audio_rx_device_id, acdb_id);
++        if (!reconf)
++                qdsp6_devchg_notify(ac_control, ADSP_AUDIO_RX_DEVICE, audio_rx_device_id);
++        qdsp6_standby(ac_control);
++        qdsp6_start(ac_control);
++}
++
++
++
+ struct audio_client *q6audio_open_pcm(uint32_t bufsz, uint32_t rate,
+ 				      uint32_t channels, uint32_t flags, uint32_t acdb_id)
+ {
+@@ -1586,7 +1641,7 @@ struct audio_client *q6audio_open_pcm(ui
+ 	ac->flags = flags;
+ 
+ 	mutex_lock(&audio_path_lock);
+-
++#if  0
+ 	if (ac->flags & AUDIO_FLAG_WRITE) {
+ 		audio_rx_path_refcount++;
+ 		if (audio_rx_path_refcount == 1) {
+@@ -1631,7 +1686,47 @@ struct audio_client *q6audio_open_pcm(ui
+ 			audio_rx_analog_enable(1);
+ 		}
+ 	}
+-
++#else
++        if (ac->flags & AUDIO_FLAG_WRITE) {
++                audio_rx_path_refcount++;
++                if (audio_rx_path_refcount == 1) {
++                        _audio_rx_clk_enable();
++                        q6_rx_path_enable(0, acdb_id);
++                        adie_rx_path_enable(acdb_id);
++                }
++        } else {
++                /* TODO: consider concurrency with voice call */
++                if (audio_tx_path_refcount > 0) {
++                        tx_clk_freq = 8000;
++                } else {
++                        tx_clk_freq = rate;
++                }
++                audio_tx_path_refcount++;
++                if (audio_tx_path_refcount == 1) {
++                        tx_clk_freq = rate;
++                        _audio_tx_clk_enable();
++                        _audio_tx_path_enable(0, acdb_id);
++                }
++        }
++
++        for (retry = 5;;retry--) {
++                if (ac->flags & AUDIO_FLAG_WRITE)
++                        rc = audio_out_open(ac, bufsz, rate, channels);
++                else
++                        rc = audio_in_open(ac, bufsz, flags, rate, channels);
++                if (rc == 0)
++                        break;
++                if (retry == 0)
++                        BUG();
++                pr_err("q6audio: open pcm error %d, retrying\n", rc);
++                msleep(1);
++        }
++
++        if (ac->flags & AUDIO_FLAG_WRITE) {
++                if (audio_rx_path_refcount == 1)
++                        audio_rx_analog_enable(1);
++        }
++#endif
+ 	mutex_unlock(&audio_path_lock);
+ 
+ 	for (retry = 5;;retry--) {
+@@ -1860,3 +1955,71 @@ int q6audio_qcelp_close(struct audio_cli
+ 	return 0;
+ }
+ 
++static int audio_amrnb_open(struct audio_client *ac, uint32_t bufsz,
++                                        uint32_t enc_mode, uint32_t flags,
++                                        uint32_t dtx_enable)
++{
++        struct adsp_open_command rpc;
++
++        memset(&rpc, 0, sizeof(rpc));
++
++        rpc.format.standard.format = ADSP_AUDIO_FORMAT_AMRNB_FS;
++        rpc.format.standard.channels = 1;
++        rpc.format.standard.bits_per_sample = 16;
++        rpc.format.standard.sampling_rate = 8000;
++        rpc.format.standard.is_signed = 1;
++        rpc.format.standard.is_interleaved = 0;
++
++        rpc.hdr.opcode = ADSP_AUDIO_IOCTL_CMD_OPEN_READ;
++        rpc.device = ADSP_AUDIO_DEVICE_ID_DEFAULT;
++
++        if (flags == AUDIO_FLAG_READ)
++                rpc.stream_context = ADSP_AUDIO_DEVICE_CONTEXT_RECORD;
++        else
++                rpc.stream_context = ADSP_AUDIO_DEVICE_CONTEXT_MIXED_RECORD;
++
++        rpc.buf_max_size = bufsz;
++        rpc.config.amr.mode = enc_mode;
++        rpc.config.amr.dtx_mode = dtx_enable;
++        rpc.config.amr.enable = 1;
++
++        return audio_ioctl(ac, &rpc, sizeof(rpc));
++}
++
++struct audio_client *q6audio_open_amrnb(uint32_t bufsz, uint32_t enc_mode,
++                                        uint32_t dtx_mode_enable,
++                                        uint32_t flags, uint32_t acdb_id)
++{
++        struct audio_client *ac;
++
++        TRACE("q6audio_open_amrnb()\n");
++
++        if (q6audio_init())
++                return 0;
++
++        ac = audio_client_alloc(bufsz);
++        if (!ac)
++                return 0;
++
++        ac->flags = flags;
++        if (ac->flags & AUDIO_FLAG_WRITE)
++                audio_rx_path_enable(1, acdb_id);
++        else{
++                tx_clk_freq = 8000;
++                audio_tx_path_enable(1, acdb_id);
++        }
++
++        audio_amrnb_open(ac, bufsz, enc_mode, flags, dtx_mode_enable);
++        audio_command(ac, ADSP_AUDIO_IOCTL_CMD_SESSION_START);
++
++        if (!(ac->flags & AUDIO_FLAG_WRITE)) {
++                ac->buf[0].used = 1;
++                ac->buf[1].used = 1;
++                q6audio_read(ac, &ac->buf[0]);
++                q6audio_read(ac, &ac->buf[1]);
++        }
++        audio_prevent_sleep();
++        return ac;
++}
++
++
+Binary files bravo_2.6.35_gb-mr/config.gz and bravo_2.6.35_gb_mr_works/config.gz differ
+diff -rupN -X /home/droidzone/android/kernel/exclude.opts bravo_2.6.35_gb-mr/drivers/input/misc/gpio_matrix.c bravo_2.6.35_gb_mr_works/drivers/input/misc/gpio_matrix.c
+--- bravo_2.6.35_gb-mr/drivers/input/misc/gpio_matrix.c	2011-08-25 13:16:53.000000000 +0530
++++ bravo_2.6.35_gb_mr_works/drivers/input/misc/gpio_matrix.c	2011-12-02 01:11:34.844904361 +0530
+@@ -163,8 +163,9 @@ static void report_key(struct gpio_kp *k
+ 		if (need_send_spec_key == pressed) {
+ 			curcial_oj_send_key(keycode, pressed);
+ 			need_send_spec_key = !pressed;
+-			KEY_LOGI("%s: send OJ action key, pressed: %d\n",
+-				__func__, pressed);
++			printk(KERN_INFO "%s: send OJ action key, pressed: %d\n",
++				__func__, need_send_spec_key);
++					input_report_key(kp->input_devs->dev[dev], keycode, pressed);
+ 		}
+ 	}
+ #endif
+@@ -392,11 +393,8 @@ int gpio_event_matrix_func(struct gpio_e
+ 	if (func == GPIO_EVENT_FUNC_SUSPEND || func == GPIO_EVENT_FUNC_RESUME) {
+ 		/* TODO: disable scanning */
+ 		if (mi->detect_phone_status == 0) {
+-			if (func == GPIO_EVENT_FUNC_SUSPEND)
+-				irq_status = 0;
+-			else
+-				irq_status = 1;
+-		} else {
++			return 0;
++			
+ 			phone_call_status = gpio_event_get_phone_call_status() & 0x01;
+ 			fm_radio_status = gpio_event_get_fm_radio_status() & 0x01;
+ 			KEY_LOGI("%s: mi->ninputs: %d, func&0x01 = %d, phone_call_status=%d, fm_radio_status=%d\n", __func__, mi->ninputs, func & 0x01, phone_call_status, fm_radio_status);
+diff -rupN -X /home/droidzone/android/kernel/exclude.opts bravo_2.6.35_gb-mr/drivers/power/ds2784_battery.c bravo_2.6.35_gb_mr_works/drivers/power/ds2784_battery.c
+--- bravo_2.6.35_gb-mr/drivers/power/ds2784_battery.c	2011-08-25 13:16:53.000000000 +0530
++++ bravo_2.6.35_gb_mr_works/drivers/power/ds2784_battery.c	2011-12-02 15:07:27.637865719 +0530
+@@ -38,6 +38,8 @@
+ #include <linux/time.h>
+ #include <linux/rtc.h>
+ 
++int Batt_extended;
++
+ struct battery_info {
+ 	u8 batt_id;		/* Battery ID from ADC */
+ 	int batt_vol;		/* Battery voltage from ADC */
+@@ -118,7 +120,6 @@ PS. 0 or other battery ID use the same p
+ /* Battery ID = 1: HT-E/Formosa 1400mAh */
+ #define BATT_ID_A				1
+ #define BATT_FULL_MAH_A			1400
+-
+ #define BATT_FULL_MAH_DEFAULT	1500
+ 
+ /* Battery OVP and Charging stage define */
+@@ -213,7 +214,7 @@ static int ds2784_blocking_notify(unsign
+ 			htc_batt_info.rep.charging_enabled = DISABLE;
+ 			chg_ctl = DISABLE;
+ 			v = DISABLE;
+-			pr_info("[HTC_BATT] Unknow battery\n");
++			pr_info("[HTC_BATT] Unknown battery\n");
+ 		}
+ 
+ 		if (machine_is_passionc() || machine_is_bravoc()) {
+@@ -249,7 +250,10 @@ int ds2784_get_battery_info(struct batte
+ 	batt_info->full_bat = htc_batt_info.rep.acr;
+ /* DS2784 did not support this over vchg, but we need to have reply */
+ 	batt_info->over_vchg = 0;
+-		return 0;
++	pr_info("[BATT-DEBUG: DISPLAYING ADDITIONAL BATTERY INFO]\n");
++	pr_info("[BATT-DEBUG]: Batt ID:%d Batt_vol:%d Batt_temp:%d\n",htc_batt_info.rep.batt_id, htc_batt_info.rep.batt_vol, htc_batt_info.rep.batt_temp);
++	pr_info("[BATT-DEBUG]: Batt_level:%d Batt_charging_source: %d Batt_enabled: %d Full_bat: %d\n", htc_batt_info.rep.level, htc_batt_info.rep.charging_source, htc_batt_info.rep.charging_enabled, htc_batt_info.rep.acr);
++	return 0;
+ }
+ ssize_t htc_battery_show_attr(struct device_attribute *attr,
+ 					 char *buf)
+@@ -388,8 +392,18 @@ static int Calculate_Full_mAh(struct ds2
+ 	int Upper_Full = 0;
+ 	int Lower_Full = 0;
+ 	int Delta_temp = 0;
+-
+-	Full_mAh = BATT_FULL_MAH_DEFAULT;
++	int Full_Mah_Cameron = 2500;
++	if (Batt_extended == 1)
++	{
++	  pr_info("[HTC_BATT]Setting Full mAh values of Cameron Sino Battery\n");
++	  Full_mAh = Full_Mah_Cameron;
++	} else {
++	  pr_info("[HTC_BATT]Setting Full mAh values of Stock Battery\n");
++	  Full_mAh = BATT_FULL_MAH_DEFAULT;
++	}
++	pr_info("[HTC_BATT]Full mAh value set as %d\n", Full_mAh);
++	
++	
+ 
+ /* Only calculate at initial */
+ 	if (htc_battery_initial == 0) {
+@@ -486,9 +500,15 @@ Get Rsns, get from offset 69H . Rsnsp=1/
+ Judge if this is supported battery
+ */
+ 	mutex_lock(&htc_batt_info.lock);
+-	if (di->raw[DS2784_REG_RSNSP] != BATT_RSNSP)
+-		htc_batt_info.rep.batt_id = BATT_UNKNOWN;
+-	else
++	pr_info("**********************************************\n");
++	pr_info("[BATT-DEBUG]: CHECKING IF BATTERY IS SUPPORTED\n");
++	if (di->raw[DS2784_REG_RSNSP] != BATT_RSNSP) {
++		pr_info("[BATT-DEBUG]: Extended unsupported battery detected\n");
++		pr_info("[BATT-DEBUG]: Re-enabling charge and status indicator - Droidzone\n");
++		pr_info("[BATT-DEBUG]: Battery check overridden\n");
++		pr_info("[BATT-DEBUG]: Dirty hack : Battery set as Cameron Sino\n");
++		Batt_extended = 1;   	      
++	} else
+ 		htc_batt_info.rep.batt_id = BATT_FIRST_SOURCE;
+ 	mutex_unlock(&htc_batt_info.lock);
+ 
+@@ -569,7 +589,14 @@ Set to local for reply to framework
+ 		htc_battery_initial = 1;
+ 		htc_batt_info.rep.full_level = 100;
+ 	}
+-pr_info("[HTC_BATT]RSNSP=%d,RARC=%d,Vol=%dmV,Current=%dmA,Temp=%dC(1/10)\n"
++	if (Batt_extended == 1)
++	{
++	  pr_info("[HTC_BATT]Extended Battery detected within BattInfo check\n");
++	} else {
++	  pr_info("[HTC_BATT]Extended Battery was not detected within BattInfo check\n");
++	}	
++	
++	pr_info("[HTC_BATT]RSNSP=%d,RARC=%d,Vol=%dmV,Current=%dmA,Temp=%dC(1/10)\n"
+ 		,di->raw[DS2784_REG_RSNSP]
+ 		,di->raw[DS2784_REG_RARC]
+ 		,di->voltage_mV
+diff -rupN -X /home/droidzone/android/kernel/exclude.opts bravo_2.6.35_gb-mr/include/asm/Kbuild bravo_2.6.35_gb_mr_works/include/asm/Kbuild
+--- bravo_2.6.35_gb-mr/include/asm/Kbuild	1970-01-01 05:30:00.000000000 +0530
++++ bravo_2.6.35_gb_mr_works/include/asm/Kbuild	2011-10-31 14:27:55.000000000 +0530
+@@ -0,0 +1,3 @@
++include include/asm-generic/Kbuild.asm
++
++unifdef-y += hwcap.h
+Binary files bravo_2.6.35_gb-mr/scripts/basic/docproc and bravo_2.6.35_gb_mr_works/scripts/basic/docproc differ
+Binary files bravo_2.6.35_gb-mr/scripts/basic/fixdep and bravo_2.6.35_gb_mr_works/scripts/basic/fixdep differ
+Binary files bravo_2.6.35_gb-mr/scripts/basic/hash and bravo_2.6.35_gb_mr_works/scripts/basic/hash differ
+Binary files bravo_2.6.35_gb-mr/scripts/bin2c and bravo_2.6.35_gb_mr_works/scripts/bin2c differ
+Binary files bravo_2.6.35_gb-mr/scripts/kallsyms and bravo_2.6.35_gb_mr_works/scripts/kallsyms differ
+Binary files bravo_2.6.35_gb-mr/scripts/kconfig/conf and bravo_2.6.35_gb_mr_works/scripts/kconfig/conf differ
+Binary files bravo_2.6.35_gb-mr/scripts/kconfig/mconf and bravo_2.6.35_gb_mr_works/scripts/kconfig/mconf differ
+Binary files bravo_2.6.35_gb-mr/scripts/mod/mk_elfconfig and bravo_2.6.35_gb_mr_works/scripts/mod/mk_elfconfig differ
