@@ -71,7 +71,7 @@
 	.global	main
 	.type	main, %function
 main:
-.LFB1020:
+.LFB1029:
 	.file 1 "arch/arm/kernel/asm-offsets.c"
 	.loc 1 41 0
 	.cfi_startproc
@@ -402,7 +402,7 @@ main:
 	mov	r0, #0	@,
 	ldmfd	sp, {fp, sp, pc}	@
 	.cfi_endproc
-.LFE1020:
+.LFE1029:
 	.size	main, .-main
 	.text
 .Letext0:
@@ -7392,8 +7392,8 @@ main:
 	.byte	0x28
 	.byte	0x1
 	.4byte	0x29
-	.4byte	.LFB1020
-	.4byte	.LFE1020
+	.4byte	.LFB1029
+	.4byte	.LFE1029
 	.4byte	.LLST0
 	.uleb128 0x2b
 	.4byte	.LASF661
@@ -7492,14 +7492,14 @@ main:
 	.uleb128 0x2d
 	.4byte	.LASF671
 	.byte	0xa
-	.2byte	0x686
+	.2byte	0x6d3
 	.4byte	0x1d7b
 	.byte	0x1
 	.byte	0x1
 	.uleb128 0x2d
 	.4byte	.LASF672
 	.byte	0xa
-	.2byte	0x757
+	.2byte	0x7a4
 	.4byte	0x62
 	.byte	0x1
 	.byte	0x1
@@ -7587,7 +7587,7 @@ main:
 	.uleb128 0x2d
 	.4byte	.LASF666
 	.byte	0xa
-	.2byte	0x7a5
+	.2byte	0x7f2
 	.4byte	0x1cd3
 	.byte	0x1
 	.byte	0x1
@@ -7622,14 +7622,14 @@ main:
 	.uleb128 0x2d
 	.4byte	.LASF671
 	.byte	0xa
-	.2byte	0x686
+	.2byte	0x6d3
 	.4byte	0x1d7b
 	.byte	0x1
 	.byte	0x1
 	.uleb128 0x2d
 	.4byte	.LASF672
 	.byte	0xa
-	.2byte	0x757
+	.2byte	0x7a4
 	.4byte	0x62
 	.byte	0x1
 	.byte	0x1
@@ -8231,7 +8231,7 @@ main:
 	.section	.debug_loc,"",%progbits
 .Ldebug_loc0:
 .LLST0:
-	.4byte	.LFB1020
+	.4byte	.LFB1029
 	.4byte	.LCFI0
 	.2byte	0x2
 	.byte	0x7d
@@ -8242,7 +8242,7 @@ main:
 	.byte	0x7c
 	.sleb128 0
 	.4byte	.LCFI1
-	.4byte	.LFE1020
+	.4byte	.LFE1029
 	.2byte	0x2
 	.byte	0x7b
 	.sleb128 4
@@ -8256,14 +8256,14 @@ main:
 	.byte	0
 	.2byte	0
 	.2byte	0
-	.4byte	.LFB1020
-	.4byte	.LFE1020-.LFB1020
+	.4byte	.LFB1029
+	.4byte	.LFE1029-.LFB1029
 	.4byte	0
 	.4byte	0
 	.section	.debug_ranges,"",%progbits
 .Ldebug_ranges0:
-	.4byte	.LFB1020
-	.4byte	.LFE1020
+	.4byte	.LFB1029
+	.4byte	.LFE1029
 	.4byte	0
 	.4byte	0
 	.section	.debug_line,"",%progbits
