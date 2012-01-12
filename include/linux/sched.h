@@ -1501,6 +1501,83 @@ struct task_struct {
 #endif
 };
 
+#ifdef CONFIG_SCHED_BFS
+extern bool grunqueue_is_locked(void);
+extern void grq_unlock_wait(void);
+extern void cpu_scaling(int cpu);
+extern void cpu_nonscaling(int cpu);
+#define tsk_seruntime(t)		((t)->sched_time)
+#define tsk_rttimeout(t)		((t)->rt_timeout)
+
+static inline void set_oom_timeslice(struct task_struct *p)
+{
+	p->time_slice = HZ;
+}
+
+static inline void tsk_cpus_current(struct task_struct *p)
+{
+}
+
+#define runqueue_is_locked(cpu)	grunqueue_is_locked()
+
+static inline void print_scheduler_version(void)
+{
+	printk(KERN_INFO"BFS CPU scheduler v0.413 by Con Kolivas.\n");
+}
+
+static inline bool iso_task(struct task_struct *p)
+{
+	return (p->policy == SCHED_ISO);
+}
+extern void remove_cpu(int cpu);
+extern bool above_background_load(void);
+#else /* CFS */
+extern int runqueue_is_locked(int cpu);
+static inline void cpu_scaling(int cpu)
+{
+}
+
+static inline void cpu_nonscaling(int cpu)
+{
+}
+#define tsk_seruntime(t)	((t)->se.sum_exec_runtime)
+#define tsk_rttimeout(t)	((t)->rt.timeout)
+
+static inline void sched_exit(struct task_struct *p)
+{
+}
+
+static inline void set_oom_timeslice(struct task_struct *p)
+{
+	p->rt.time_slice = HZ;
+}
+
+static inline void tsk_cpus_current(struct task_struct *p)
+{
+	p->rt.nr_cpus_allowed = current->rt.nr_cpus_allowed;
+}
+
+static inline void print_scheduler_version(void)
+{
+	printk(KERN_INFO"CFS CPU scheduler.\n");
+}
+
+static inline bool iso_task(struct task_struct *p)
+{
+	return false;
+}
+
+static inline void remove_cpu(int cpu)
+{
+}
+
+/* Anyone feel like implementing this? */
+static inline int above_background_load(void)
+{
+	return 1;
+}
+#endif /* CONFIG_SCHED_BFS */
+
 /* Future-safe accessor for struct task_struct's cpus_allowed. */
 #define tsk_cpus_allowed(tsk) (&(tsk)->cpus_allowed)
 

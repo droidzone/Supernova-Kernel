@@ -120,8 +120,6 @@ struct clkctl_acpu_speed acpu_freq_tbl[] = {
 	{ 1113600, CCTL(CLK_TCXO, 1),		SRC_SCPLL, 0x1D, 0, 1275, 128000 },
         { 1152000, CCTL(CLK_TCXO, 1),		SRC_SCPLL, 0x1E, 0, 1300, 128000 },
 	{ 1190400, CCTL(CLK_TCXO, 1),		SRC_SCPLL, 0x1F, 0, 1325, 128000 },
-	{ 1228800, CCTL(CLK_TCXO, 1),		SRC_SCPLL, 0x1F, 0, 1325, 128000 },
-	{ 1267200, CCTL(CLK_TCXO, 1),		SRC_SCPLL, 0x1F, 0, 1325, 128000 },
 	{ 0 },
 };
 static unsigned long max_axi_rate;
@@ -502,7 +500,7 @@ void __init acpu_freq_tbl_fixup(void)
 		max_acpu_khz = 998400;
 		break;
 	case 0x10:
-		max_acpu_khz = 1267200;
+		max_acpu_khz = 1190400;
 		break;
 	default:
 		pr_warning("Invalid efuse data (%x) on Max ACPU freq!\n",
