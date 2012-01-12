@@ -1,8 +1,8 @@
-/* This file is auto generated, version 11 */
+/* This file is auto generated, version 12 */
 /*  PREEMPT */
 #define UTS_MACHINE "arm"
-#define UTS_VERSION "#11 PREEMPT Thu Jan 12 18:33:11 IST 2012"
-#define LINUX_COMPILE_TIME "18:33:11"
+#define UTS_VERSION "#12 PREEMPT Thu Jan 12 19:36:05 IST 2012"
+#define LINUX_COMPILE_TIME "19:36:05"
 #define LINUX_COMPILE_BY "droidzone"
 #define LINUX_COMPILE_HOST "supernova"
 #define LINUX_COMPILE_DOMAIN "(none)"

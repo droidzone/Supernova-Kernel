@@ -1,7 +1,7 @@
 /*
  * Automatically generated C config: don't edit
  * Linux kernel version: 2.6.35.10
- * Thu Jan 12 18:33:02 2012
+ * Thu Jan 12 19:33:53 2012
  */
 #define AUTOCONF_INCLUDED
 #define CONFIG_IP6_NF_MATCH_AH 1
@@ -455,6 +455,7 @@
 #define CONFIG_GENERIC_ALLOCATOR 1
 #define CONFIG_INPUT_DUMMY_KEYPAD 1
 #define CONFIG_ANDROID_TIMED_OUTPUT 1
+#define CONFIG_CPU_FREQ_VDD_LEVELS 1
 #define CONFIG_LIBCRC32C 1
 #define CONFIG_INET_TCP_DIAG 1
 #define CONFIG_DM_DEBUG 1
