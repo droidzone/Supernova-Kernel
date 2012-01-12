@@ -1,7 +1,7 @@
 /*
  * Automatically generated C config: don't edit
  * Linux kernel version: 2.6.35.10
- * Thu Jan 12 11:59:57 2012
+ * Thu Jan 12 13:43:18 2012
  */
 #define AUTOCONF_INCLUDED
 #define CONFIG_IP6_NF_MATCH_AH 1
@@ -462,7 +462,7 @@
 #define CONFIG_MSM_CAMERA 1
 #define CONFIG_DEBUG_KERNEL 1
 #define CONFIG_COMPAT_BRK 1
-#define CONFIG_LOCALVERSION "_EBfixTP2WCLS"
+#define CONFIG_LOCALVERSION "_EBfixTP2WcLsSma2"
 #define CONFIG_CRYPTO 1
 #define CONFIG_SCHED_DEBUG 1
 #define CONFIG_LEDS_GPIO_PLATFORM 1
