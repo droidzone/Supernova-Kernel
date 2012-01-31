@@ -1,1 +1,4 @@
+kernel/fs/ext3/ext3.ko
+kernel/fs/jbd/jbd.ko
 kernel/fs/cifs/cifs.ko
+kernel/fs/btrfs/btrfs.ko

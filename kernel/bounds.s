@@ -13,7 +13,7 @@
 @	compiled by GNU C version 4.6.1, GMP version 5.0.2, MPFR version 3.1.0, MPC version 0.9
 @ GGC heuristics: --param ggc-min-expand=100 --param ggc-min-heapsize=131072
 @ options passed:  -nostdinc
-@ -I /home/droidzone/supernova-kernel/arch/arm/include -I include
+@ -I /home/droidzone/bitbucket/supernova-kernel/arch/arm/include -I include
 @ -I arch/arm/mach-msm/include -D __KERNEL__ -D __LINUX_ARM_ARCH__=7 -U arm
 @ -D KBUILD_STR(s)=#s -D KBUILD_BASENAME=KBUILD_STR(bounds)
 @ -D KBUILD_MODNAME=KBUILD_STR(bounds)
@@ -434,6 +434,8 @@ foo:
 	.ascii	"PG_slub_frozen\000"
 .LASF36:
 	.ascii	"PG_fscache\000"
+.LASF50:
+	.ascii	"/home/droidzone/bitbucket/supernova-kernel\000"
 .LASF21:
 	.ascii	"PG_reserved\000"
 .LASF11:
@@ -454,8 +456,6 @@ foo:
 	.ascii	"__MAX_NR_ZONES\000"
 .LASF44:
 	.ascii	"ZONE_NORMAL\000"
-.LASF50:
-	.ascii	"/home/droidzone/supernova-kernel\000"
 .LASF20:
 	.ascii	"PG_arch_1\000"
 .LASF19:
