@@ -1,7 +1,7 @@
 /*
  * Automatically generated C config: don't edit
  * Linux kernel version: 2.6.35.10
- * Tue Mar  6 06:12:52 2012
+ * Tue Mar  6 06:49:24 2012
  */
 #define AUTOCONF_INCLUDED
 #define CONFIG_IP6_NF_MATCH_AH 1
@@ -466,7 +466,7 @@
 #define CONFIG_MSM_CAMERA 1
 #define CONFIG_DEBUG_KERNEL 1
 #define CONFIG_COMPAT_BRK 1
-#define CONFIG_LOCALVERSION "_No2way"
+#define CONFIG_LOCALVERSION "_No2way_powersavev4"
 #define CONFIG_CRYPTO 1
 #define CONFIG_SCHED_DEBUG 1
 #define CONFIG_BTRFS_FS_MODULE 1
