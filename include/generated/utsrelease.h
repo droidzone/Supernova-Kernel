@@ -1,1 +1,1 @@
-#define UTS_RELEASE "2.6.35.10_basekernel-g1fdfd5c-dirty"
+#define UTS_RELEASE "2.6.35.10_basekernel-gfb1198d-dirty"

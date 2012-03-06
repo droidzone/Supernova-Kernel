@@ -10,14 +10,15 @@
 	.eabi_attribute 18, 4
 	.file	"bounds.c"
 @ GNU C (crosstool-NG 1.13.3) version 4.6.2 (arm-msm-linux-gnueabi)
-@	compiled by GNU C version 4.6.1, GMP version 5.0.2, MPFR version 3.1.0, MPC version 0.9
+@	compiled by GNU C version 4.1.2 20080704 (Red Hat 4.1.2-50), GMP version 5.0.2, MPFR version 3.0.1, MPC version 0.9
 @ GGC heuristics: --param ggc-min-expand=100 --param ggc-min-heapsize=131072
 @ options passed:  -nostdinc
-@ -I /home/droidzone/bitbucket/supernova-kernel/arch/arm/include -I include
-@ -I arch/arm/mach-msm/include -D __KERNEL__ -D __LINUX_ARM_ARCH__=7 -U arm
-@ -D KBUILD_STR(s)=#s -D KBUILD_BASENAME=KBUILD_STR(bounds)
+@ -I /home/users/d/dr/droidzone/supernova-kernel/arch/arm/include
+@ -I include -I arch/arm/mach-msm/include -D __KERNEL__
+@ -D __LINUX_ARM_ARCH__=7 -U arm -D KBUILD_STR(s)=#s
+@ -D KBUILD_BASENAME=KBUILD_STR(bounds)
 @ -D KBUILD_MODNAME=KBUILD_STR(bounds)
-@ -isystem /home/droidzone/x-tools/arm-msm-linux-gnueabi/lib/gcc/arm-msm-linux-gnueabi/4.6.2/include
+@ -isystem /home/users/d/dr/droidzone/x-tools/arm-msm-linux-gnueabi/lib/gcc/arm-msm-linux-gnueabi/4.6.2/include
 @ -include include/generated/autoconf.h -MD kernel/.bounds.s.d
 @ kernel/bounds.c -mlittle-endian -marm -mapcs -mno-sched-prolog
 @ -mabi=aapcs-linux -mno-thumb-interwork -march=armv7-a -msoft-float
@@ -61,7 +62,7 @@
 
 	.text
 .Ltext0:
-@ Compiler executable checksum: 44dead751b16be35ed3bf5d6c189f430
+@ Compiler executable checksum: 9c454b88c791092f696603746567c14f
 
 	.cfi_sections	.debug_frame
 	.align	2
@@ -434,8 +435,6 @@ foo:
 	.ascii	"PG_slub_frozen\000"
 .LASF36:
 	.ascii	"PG_fscache\000"
-.LASF50:
-	.ascii	"/home/droidzone/bitbucket/supernova-kernel\000"
 .LASF21:
 	.ascii	"PG_reserved\000"
 .LASF11:
@@ -498,6 +497,8 @@ foo:
 	.ascii	"PG_unevictable\000"
 .LASF7:
 	.ascii	"long unsigned int\000"
+.LASF50:
+	.ascii	"/home/users/d/dr/droidzone/supernova-kernel\000"
 .LASF27:
 	.ascii	"PG_swapcache\000"
 .LASF17:

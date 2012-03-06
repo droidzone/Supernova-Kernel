@@ -10,14 +10,15 @@
 	.eabi_attribute 18, 4
 	.file	"asm-offsets.c"
 @ GNU C (crosstool-NG 1.13.3) version 4.6.2 (arm-msm-linux-gnueabi)
-@	compiled by GNU C version 4.6.1, GMP version 5.0.2, MPFR version 3.1.0, MPC version 0.9
+@	compiled by GNU C version 4.1.2 20080704 (Red Hat 4.1.2-50), GMP version 5.0.2, MPFR version 3.0.1, MPC version 0.9
 @ GGC heuristics: --param ggc-min-expand=100 --param ggc-min-heapsize=131072
 @ options passed:  -nostdinc
-@ -I /home/droidzone/bitbucket/supernova-kernel/arch/arm/include -I include
-@ -I arch/arm/mach-msm/include -D __KERNEL__ -D __LINUX_ARM_ARCH__=7 -U arm
-@ -D KBUILD_STR(s)=#s -D KBUILD_BASENAME=KBUILD_STR(asm_offsets)
+@ -I /home/users/d/dr/droidzone/supernova-kernel/arch/arm/include
+@ -I include -I arch/arm/mach-msm/include -D __KERNEL__
+@ -D __LINUX_ARM_ARCH__=7 -U arm -D KBUILD_STR(s)=#s
+@ -D KBUILD_BASENAME=KBUILD_STR(asm_offsets)
 @ -D KBUILD_MODNAME=KBUILD_STR(asm_offsets)
-@ -isystem /home/droidzone/x-tools/arm-msm-linux-gnueabi/lib/gcc/arm-msm-linux-gnueabi/4.6.2/include
+@ -isystem /home/users/d/dr/droidzone/x-tools/arm-msm-linux-gnueabi/lib/gcc/arm-msm-linux-gnueabi/4.6.2/include
 @ -include include/generated/autoconf.h
 @ -MD arch/arm/kernel/.asm-offsets.s.d arch/arm/kernel/asm-offsets.c
 @ -mlittle-endian -marm -mapcs -mno-sched-prolog -mabi=aapcs-linux
@@ -62,7 +63,7 @@
 
 	.text
 .Ltext0:
-@ Compiler executable checksum: 44dead751b16be35ed3bf5d6c189f430
+@ Compiler executable checksum: 9c454b88c791092f696603746567c14f
 
 	.cfi_sections	.debug_frame
 	.section	.text.startup,"ax",%progbits
@@ -406,15 +407,15 @@ main:
 	.text
 .Letext0:
 	.file 2 "include/asm-generic/int-ll64.h"
-	.file 3 "/home/droidzone/bitbucket/supernova-kernel/arch/arm/include/asm/posix_types.h"
+	.file 3 "/home/users/d/dr/droidzone/supernova-kernel/arch/arm/include/asm/posix_types.h"
 	.file 4 "include/linux/types.h"
 	.file 5 "include/linux/capability.h"
 	.file 6 "include/linux/thread_info.h"
 	.file 7 "include/linux/time.h"
-	.file 8 "/home/droidzone/bitbucket/supernova-kernel/arch/arm/include/asm/fpstate.h"
-	.file 9 "/home/droidzone/bitbucket/supernova-kernel/arch/arm/include/asm/thread_info.h"
+	.file 8 "/home/users/d/dr/droidzone/supernova-kernel/arch/arm/include/asm/fpstate.h"
+	.file 9 "/home/users/d/dr/droidzone/supernova-kernel/arch/arm/include/asm/thread_info.h"
 	.file 10 "include/linux/sched.h"
-	.file 11 "/home/droidzone/bitbucket/supernova-kernel/arch/arm/include/asm/processor.h"
+	.file 11 "/home/users/d/dr/droidzone/supernova-kernel/arch/arm/include/asm/processor.h"
 	.file 12 "include/linux/list.h"
 	.file 13 "include/linux/spinlock_types_up.h"
 	.file 14 "include/linux/spinlock_types.h"
@@ -422,16 +423,16 @@ main:
 	.file 16 "include/linux/rbtree.h"
 	.file 17 "include/linux/cpumask.h"
 	.file 18 "include/linux/prio_tree.h"
-	.file 19 "/home/droidzone/bitbucket/supernova-kernel/arch/arm/include/asm/rwsem.h"
+	.file 19 "/home/users/d/dr/droidzone/supernova-kernel/arch/arm/include/asm/rwsem.h"
 	.file 20 "include/linux/wait.h"
 	.file 21 "include/linux/completion.h"
 	.file 22 "include/linux/mm_types.h"
-	.file 23 "/home/droidzone/bitbucket/supernova-kernel/arch/arm/include/asm/page.h"
-	.file 24 "/home/droidzone/bitbucket/supernova-kernel/arch/arm/include/asm/mmu.h"
+	.file 23 "/home/users/d/dr/droidzone/supernova-kernel/arch/arm/include/asm/page.h"
+	.file 24 "/home/users/d/dr/droidzone/supernova-kernel/arch/arm/include/asm/mmu.h"
 	.file 25 "include/linux/mm.h"
 	.file 26 "include/asm-generic/cputime.h"
 	.file 27 "include/linux/rcupdate.h"
-	.file 28 "/home/droidzone/bitbucket/supernova-kernel/arch/arm/include/asm/signal.h"
+	.file 28 "/home/users/d/dr/droidzone/supernova-kernel/arch/arm/include/asm/signal.h"
 	.file 29 "include/asm-generic/signal-defs.h"
 	.file 30 "include/asm-generic/siginfo.h"
 	.file 31 "include/linux/signal.h"
@@ -449,7 +450,7 @@ main:
 	.file 43 "include/linux/ioport.h"
 	.file 44 "include/linux/timer.h"
 	.file 45 "include/linux/dma-mapping.h"
-	.file 46 "/home/droidzone/bitbucket/supernova-kernel/arch/arm/include/asm/hwcap.h"
+	.file 46 "/home/users/d/dr/droidzone/supernova-kernel/arch/arm/include/asm/hwcap.h"
 	.file 47 "include/linux/kernel.h"
 	.file 48 "include/linux/timex.h"
 	.file 49 "include/linux/debug_locks.h"
@@ -9132,6 +9133,8 @@ main:
 	.ascii	"context\000"
 .LASF406:
 	.ascii	"free_list\000"
+.LASF680:
+	.ascii	"/home/users/d/dr/droidzone/supernova-kernel\000"
 .LASF235:
 	.ascii	"last\000"
 .LASF194:
@@ -9494,8 +9497,6 @@ main:
 	.ascii	"user_namespace\000"
 .LASF64:
 	.ascii	"fp_soft_struct\000"
-.LASF680:
-	.ascii	"/home/droidzone/bitbucket/supernova-kernel\000"
 .LASF387:
 	.ascii	"siginfo_t\000"
 .LASF313:
