@@ -1205,10 +1205,10 @@ static void ds2784_battery_algorithm(struct ds2784_device_info *di)
 			(htc_batt_info.rep.guage_status_reg & 0x80) &&
 			(htc_batt_info.rep.batt_current <= 80) &&
 			(htc_batt_info.rep.full_acr == 0)) {
-				/* acr[0] = 0x0d;
+			/* LEAVE THE ACR VALUE F*CKING ALONE!
+				acr[0] = 0x0d;
 				acr[1] = 0x87;
-				w1_ds2784_write(di->w1_dev, acr, DS2784_REG_ACCUMULATE_CURR_MSB, 2);
-				*/				
+				w1_ds2784_write(di->w1_dev, acr, DS2784_REG_ACCUMULATE_CURR_MSB, 2); */
 				htc_batt_info.rep.full_acr = 1;
 				pr_info("[HTC_BATT] Current Full ACR = %x %x\n", acr[0], acr[1]);
 				pr_info("[HTC_BATT] Recharging should set ACR to 100 percent\n");
@@ -1217,8 +1217,8 @@ static void ds2784_battery_algorithm(struct ds2784_device_info *di)
 		htc_batt_info.rep.full_acr = 0;
 
 	if (htc_batt_info.rep.level >= 100) {
-		if ((htc_batt_info.rep.guage_status_reg & 0x80)) 
-		// && (htc_batt_info.rep.batt_current <= 80))
+		if ((htc_batt_info.rep.guage_status_reg & 0x80) &&
+		    (htc_batt_info.rep.batt_current <= 80))
 			htc_batt_info.rep.level = 100;
 		else
 			htc_batt_info.rep.level = 99;
@@ -1348,7 +1348,7 @@ static void ds2784_battery_alarm(struct alarm *alarm)
 	queue_work(di->monitor_wqueue, &di->monitor_work);
 }
 
-//* ADDENDUM
+//* ADDED
 
 static ssize_t set_reg(struct device *dev, struct device_attribute *attr,
 	const char *buf, size_t count) {
@@ -1701,10 +1701,11 @@ static ssize_t show_mAh(struct device *dev, struct device_attribute *attr,
 
 static DEVICE_ATTR(getmAh, 0644, show_mAh, NULL);
 
-//ADDENDUM COMPLETE */
+//ADDED */
 
-static int ds2784_battery_probe(struct platform_device *pdev) {
-	int rc, ret;
+static int ds2784_battery_probe(struct platform_device *pdev)
+{
+	int rc;
 	struct ds2784_device_info *di;
 	struct ds2784_platform_data *pdata;
 
@@ -1721,7 +1722,7 @@ static int ds2784_battery_probe(struct platform_device *pdev) {
 	di->dev = &pdev->dev;
 	di->w1_dev	     = pdev->dev.parent;
 
-	///* ADDED
+	//* ADDED
 	ret = device_create_file(&pdev->dev, &dev_attr_setreg);
 	if (ret < 0)
 		pr_err("%s: Failed to create sysfs entry for setreg\n", __func__);
@@ -1766,6 +1767,7 @@ static int ds2784_battery_probe(struct platform_device *pdev) {
 		pr_err("%s: Failed to create sysfs entry for mAh\n", __func__);
 
 	// ADDED END */
+
 	INIT_WORK(&di->monitor_work, ds2784_battery_work);
 	di->monitor_wqueue = create_freezeable_workqueue(
 		dev_name(&pdev->dev));
