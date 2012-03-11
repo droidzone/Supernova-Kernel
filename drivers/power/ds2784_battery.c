@@ -1205,9 +1205,10 @@ static void ds2784_battery_algorithm(struct ds2784_device_info *di)
 			(htc_batt_info.rep.guage_status_reg & 0x80) &&
 			(htc_batt_info.rep.batt_current <= 80) &&
 			(htc_batt_info.rep.full_acr == 0)) {
+			/* LEAVE THE ACR VALUE F*CKING ALONE!
 				acr[0] = 0x0d;
 				acr[1] = 0x87;
-				w1_ds2784_write(di->w1_dev, acr, DS2784_REG_ACCUMULATE_CURR_MSB, 2);
+				w1_ds2784_write(di->w1_dev, acr, DS2784_REG_ACCUMULATE_CURR_MSB, 2); */
 				htc_batt_info.rep.full_acr = 1;
 				pr_info("[HTC_BATT] Current Full ACR = %x %x\n", acr[0], acr[1]);
 				pr_info("[HTC_BATT] Recharging should set ACR to 100 percent\n");
@@ -1347,6 +1348,361 @@ static void ds2784_battery_alarm(struct alarm *alarm)
 	queue_work(di->monitor_wqueue, &di->monitor_work);
 }
 
+//* ADDED
+
+static ssize_t set_reg(struct device *dev, struct device_attribute *attr,
+	const char *buf, size_t count) {
+	struct ds2784_device_info *di = dev_get_drvdata(dev);
+	int reg;
+	int val;
+	int check;
+
+	sscanf(buf, "%x %x", &reg, &val);
+
+	if (reg < 0 || reg > 255)
+		return -EINVAL;
+	if (val < 0 || val > 255)
+		return -EINVAL;
+
+	di->raw[reg] = val;
+	check = w1_ds2784_write(di->w1_dev, di->raw + reg, reg, 1);
+
+	if (check != 1) {
+	dev_warn(di->dev, "w1_ds2784_write register failed (ox%p)\n", di->w1_dev);
+}
+
+	pr_info("batt: register 0x%02x changed to 0x%02x by user\n", reg, val);
+
+	return count;
+	}
+
+static DEVICE_ATTR(setreg, 0644, NULL, set_reg);
+
+static ssize_t dump_regs(struct device *dev, struct device_attribute *attr,
+		char *buf) {
+	struct ds2784_device_info *di = dev_get_drvdata(dev);
+
+	int addr;
+	int ret = 0;
+	int val;
+	int printbytes = 0;
+
+	for (addr = 0; addr <= 0xb1; addr++, printbytes++) {
+		if (addr == 0 || addr == 0x30 || addr == 0x80) {
+			if (addr == 0x30) {
+				addr = 0x60;
+			}
+			if (addr == 0x80) {
+				addr = 0xb0;
+			}
+
+			if (PAGE_SIZE - ret > 2) {
+				ret += snprintf(&buf[ret], PAGE_SIZE - ret, "\n%02x:", addr);
+			}
+
+			w1_ds2784_read(di->w1_dev, di->raw + addr, addr, 1);
+			val = di->raw[addr];
+			printbytes = 0;
+		}
+
+		if (printbytes >= 16) {
+			if (PAGE_SIZE - ret > 2) {
+				ret += snprintf(&buf[ret], PAGE_SIZE - ret, "\n%02x:", addr);
+			}
+			printbytes = 0;
+		}
+
+		if (PAGE_SIZE - ret > 2) {
+			val = di->raw[addr];
+			ret += snprintf(&buf[ret], PAGE_SIZE - ret, " %02x", val);
+		} else {
+			break;
+		}
+	}
+	if (PAGE_SIZE - ret > 2) {
+		ret += snprintf(&buf[ret], PAGE_SIZE - ret, "\n");
+	}
+
+	return ret;
+}
+
+static DEVICE_ATTR(dumpreg, 0644, dump_regs, NULL);
+
+static ssize_t show_status_reg(struct device *dev,
+		struct device_attribute *attr, char *buf) {
+	struct ds2784_device_info *di = dev_get_drvdata(dev);
+	int ret;
+	int statusreg;
+	int check;
+
+	check = w1_ds2784_read(di->w1_dev, di->raw + DS2784_REG_STS,
+			DS2784_REG_STS, 1);
+
+	if (check != 1) {
+dev_warn	(di->dev, "w1_ds2784_read Status Register failed (ox%p)\n", di->w1_dev);
+}
+
+	statusreg = di->raw[DS2784_REG_STS];
+
+	ret = sprintf(buf, "0x%02x\n", statusreg);
+	return ret;
+}
+
+static ssize_t store_status_reg(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count) {
+	struct ds2784_device_info *di = dev_get_drvdata(dev);
+	int val;
+	int check;
+
+	sscanf(buf, "%x", &val);
+
+	if (val < 0 || val > 255)
+		return -EINVAL;
+
+	di->raw[DS2784_REG_STS] = val;
+	check = w1_ds2784_write(di->w1_dev, di->raw + DS2784_REG_STS,
+			DS2784_REG_STS, 1);
+
+	if (check != 1) {
+dev_warn	(di->dev, "w1_ds2784_write Status Register failed (ox%p)\n", di->w1_dev);
+}
+
+	pr_info("batt: Status Register set to: 0x%02x \n", val);
+
+	return count;
+}
+
+static DEVICE_ATTR(statusreg, 0644, show_status_reg, store_status_reg);
+
+static ssize_t show_voltage(struct device *dev, struct device_attribute *attr,
+		char *buf) {
+	struct ds2784_device_info *di = dev_get_drvdata(dev);
+	int ret;
+	int getvoltage;
+	int check;
+
+	check = w1_ds2784_read(di->w1_dev, di->raw + DS2784_REG_VOLT_MSB,
+			DS2784_REG_VOLT_MSB, 2);
+
+	getvoltage = (((di->raw[DS2784_REG_VOLT_MSB] << 8)
+			| (di->raw[DS2784_REG_VOLT_LSB])) >> 5) * 4886;
+
+	if (check != 2) {
+dev_warn	(di->dev, "w1_ds2784_read Voltage failed (ox%p)\n", di->w1_dev);
+}
+
+	ret = sprintf(buf, "%d\n", getvoltage);
+	return ret;
+}
+
+static DEVICE_ATTR(getvoltage, 0644, show_voltage, NULL);
+
+static ssize_t show_current(struct device *dev, struct device_attribute *attr,
+		char *buf) {
+	struct ds2784_device_info *di = dev_get_drvdata(dev);
+	short n;
+	int ret;
+	int getcurrent;
+	int check;
+
+	check = w1_ds2784_read(di->w1_dev, di->raw + DS2784_REG_CURR_MSB,
+			DS2784_REG_CURR_MSB, 2);
+
+	if (check != 2) {
+dev_warn	(di->dev, "w1_ds2784_read Current failed (ox%p)\n", di->w1_dev);
+}
+
+	n = ((di->raw[DS2784_REG_CURR_MSB]) << 8) | di->raw[DS2784_REG_CURR_LSB];
+	getcurrent = ((n * 15625) / 10000) * 67;
+
+	ret = sprintf(buf, "%d\n", getcurrent);
+	return ret;
+}
+
+static DEVICE_ATTR(getcurrent, 0644, show_current, NULL);
+
+static ssize_t show_avgcurrent(struct device *dev,
+		struct device_attribute *attr, char *buf) {
+	struct ds2784_device_info *di = dev_get_drvdata(dev);
+	short n;
+	int ret;
+	int getavgcurrent;
+	int check;
+
+	check = w1_ds2784_read(di->w1_dev, di->raw + DS2784_REG_AVG_CURR_MSB,
+			DS2784_REG_AVG_CURR_MSB, 2);
+
+	if (check != 2) {
+dev_warn	(di->dev, "w1_ds2784_read Avg Current failed (ox%p)\n", di->w1_dev);
+}
+
+	n = ((di->raw[DS2784_REG_AVG_CURR_MSB]) << 8)
+			| di->raw[DS2784_REG_AVG_CURR_LSB];
+	getavgcurrent = ((n * 15625) / 10000) * 67;
+
+	ret = sprintf(buf, "%d\n", getavgcurrent);
+
+	return ret;
+}
+
+static DEVICE_ATTR(getavgcurrent, 0644, show_avgcurrent, NULL);
+
+static ssize_t show_age(struct device *dev, struct device_attribute *attr,
+		char *buf) {
+	struct ds2784_device_info *di = dev_get_drvdata(dev);
+	int ret;
+	int check;
+	int age;
+	int ageraw;
+
+	check = w1_ds2784_read(di->w1_dev, di->raw + DS2784_REG_AGE_SCALAR,
+			DS2784_REG_AGE_SCALAR, 1);
+
+	if (check != 1) {
+dev_warn	(di->dev, "w1_ds2784_read age_scalar failed (ox%p)\n", di->w1_dev);
+}
+
+	ageraw = di->raw[DS2784_REG_AGE_SCALAR];
+	age = (ageraw * 100) / 128;
+	pr_info("%d\n", age);
+
+	ret = sprintf(buf, "%d\n", age);
+
+	return ret;
+}
+
+static ssize_t set_age(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count) {
+	struct ds2784_device_info *di = dev_get_drvdata(dev);
+	int age;
+	int check;
+
+	sscanf(buf, "%d", &age);
+
+	di->raw[DS2784_REG_AGE_SCALAR] = ((age * 128) / 100);
+
+	check = w1_ds2784_write(di->w1_dev, di->raw + DS2784_REG_AGE_SCALAR,
+			DS2784_REG_AGE_SCALAR, 1);
+
+	if (check != 1) {
+dev_warn	(di->dev, "w1_ds2784_write age_scalar failed (ox%p)\n", di->w1_dev);
+}
+
+	pr_info("batt: age_scalar set to: %d percent\n", age);
+
+	return count;
+}
+
+static DEVICE_ATTR(age, 0644, show_age, set_age);
+
+static ssize_t show_AEvolt(struct device *dev, struct device_attribute *attr,
+		char *buf) {
+	struct ds2784_device_info *di = dev_get_drvdata(dev);
+	int ret;
+	int check;
+	int rawaevolt;
+	int aevolt;
+
+	check = w1_ds2784_read(di->w1_dev, di->raw + DS2784_REG_ACTIVE_EMPTY_VOLT,
+			DS2784_REG_ACTIVE_EMPTY_VOLT, 1);
+
+	if (check != 1) {
+dev_warn	(di->dev, "w1_ds2784_read Active Empty Voltage failed (ox%p)\n", di->w1_dev);
+}
+	rawaevolt = di->raw[DS2784_REG_ACTIVE_EMPTY_VOLT];
+	aevolt = (rawaevolt * 1952) / 100;
+
+	pr_info("batt: Active Empty Voltage is: %d volts\n", aevolt);
+
+	ret = sprintf(buf, "%d\n", aevolt);
+
+	return ret;
+}
+
+static ssize_t set_AEvolt(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count) {
+	struct ds2784_device_info *di = dev_get_drvdata(dev);
+	int val;
+	int check;
+	int temp;
+
+	sscanf(buf, "%d", &val);
+
+	di->raw[DS2784_REG_ACTIVE_EMPTY_VOLT] = ((val * 100) / 1952);
+
+	check = w1_ds2784_write(di->w1_dev,
+			di->raw + DS2784_REG_ACTIVE_EMPTY_VOLT,
+			DS2784_REG_ACTIVE_EMPTY_VOLT, 1);
+
+	if (check != 1) {
+dev_warn	(di->dev, "w1_ds2784_write Active Empty Voltage failed (ox%p)\n", di->w1_dev);
+}
+
+	temp = ((val * 100) / 1952);
+
+	pr_info("batt: Active Empty Voltage set to: %d volts\n", temp);
+
+	return count;
+}
+
+static DEVICE_ATTR(voltAE, 0644, show_AEvolt, set_AEvolt);
+
+static ssize_t show_full40(struct device *dev, struct device_attribute *attr,
+		char *buf) {
+	struct ds2784_device_info *di = dev_get_drvdata(dev);
+	int ret;
+	int check;
+	int full40mAh, full40raw;
+
+	check = w1_ds2784_read(di->w1_dev, di->raw + DS2784_REG_FULL_40_MSB,
+			DS2784_REG_FULL_40_MSB, 2);
+
+	if (check != 2) {
+dev_warn	(di->dev, "w1_ds2784_read Full40 mAh failed (ox%p)\n", di->w1_dev);
+}
+
+	full40raw = ((di->raw[DS2784_REG_FULL_40_MSB]) << 8)
+			| di->raw[DS2784_REG_FULL_40_LSB];
+
+	full40mAh = ((full40raw * 625) / 100) / 15;
+
+	pr_info("batt: Full40 mAh capacity is: %d mAh\n", full40mAh);
+
+	ret = sprintf(buf, "%dmAh\n", full40mAh);
+
+	return ret;
+}
+
+// backwards compatibility for app until it is updated
+static DEVICE_ATTR(getFull40, 0644, show_full40, NULL);
+static DEVICE_ATTR(getfull40, 0644, show_full40, NULL);
+
+static ssize_t show_mAh(struct device *dev, struct device_attribute *attr,
+		char *buf) {
+	struct ds2784_device_info *di = dev_get_drvdata(dev);
+	int ret;
+	int check;
+	int mAh;
+
+	check = w1_ds2784_read(di->w1_dev, di->raw + DS2784_REG_RAAC_MSB,
+			DS2784_REG_RAAC_MSB, 2);
+
+	if (check != 2) {
+		dev_warn(di->dev, "w1_ds2784_read mAh failed (ox%p)\n", di->w1_dev);
+	}
+
+	mAh = ((di->raw[DS2784_REG_RAAC_MSB] << 8) | di->raw[DS2784_REG_RAAC_LSB])
+			* 1600;
+
+	ret = sprintf(buf, "%d\n", mAh);
+
+	return ret;
+}
+
+static DEVICE_ATTR(getmAh, 0644, show_mAh, NULL);
+
+//ADDED */
+
 static int ds2784_battery_probe(struct platform_device *pdev)
 {
 	int rc;
@@ -1365,6 +1721,52 @@ static int ds2784_battery_probe(struct platform_device *pdev)
 	pdata = pdev->dev.platform_data;
 	di->dev = &pdev->dev;
 	di->w1_dev	     = pdev->dev.parent;
+
+	//* ADDED
+	ret = device_create_file(&pdev->dev, &dev_attr_setreg);
+	if (ret < 0)
+		pr_err("%s: Failed to create sysfs entry for setreg\n", __func__);
+
+	ret = device_create_file(&pdev->dev, &dev_attr_dumpreg);
+	if (ret < 0)
+		pr_err("%s: Failed to create sysfs entry for dumpreg\n", __func__);
+
+	ret = device_create_file(&pdev->dev, &dev_attr_statusreg);
+	if (ret < 0)
+		pr_err("%s: Failed to create sysfs entry for statusreg\n", __func__);
+
+	ret = device_create_file(&pdev->dev, &dev_attr_getvoltage);
+	if (ret < 0)
+		pr_err("%s: Failed to create sysfs entry for voltage\n", __func__);
+
+	ret = device_create_file(&pdev->dev, &dev_attr_getcurrent);
+	if (ret < 0)
+		pr_err("%s: Failed to create sysfs entry for current\n", __func__);
+
+	ret = device_create_file(&pdev->dev, &dev_attr_getavgcurrent);
+	if (ret < 0)
+		pr_err("%s: Failed to create sysfs entry for avg current\n", __func__);
+
+	ret = device_create_file(&pdev->dev, &dev_attr_age);
+	if (ret < 0)
+		pr_err("%s: Failed to create sysfs entry for age\n", __func__);
+
+	ret = device_create_file(&pdev->dev, &dev_attr_voltAE);
+	if (ret < 0)
+		pr_err("%s: Failed to create sysfs entry for voltAE\n", __func__);
+
+	// backwards compatibility for app until it is updated
+	ret = device_create_file(&pdev->dev, &dev_attr_getFull40);
+
+	ret = device_create_file(&pdev->dev, &dev_attr_getfull40);
+	if (ret < 0)
+		pr_err("%s: Failed to create sysfs entry for getfull40\n", __func__);
+
+	ret = device_create_file(&pdev->dev, &dev_attr_getmAh);
+	if (ret < 0)
+		pr_err("%s: Failed to create sysfs entry for mAh\n", __func__);
+
+	// ADDED END */
 
 	INIT_WORK(&di->monitor_work, ds2784_battery_work);
 	di->monitor_wqueue = create_freezeable_workqueue(
