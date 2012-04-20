@@ -1,7 +1,7 @@
 /*
  * Automatically generated C config: don't edit
  * Linux kernel version: 2.6.35.10
- * Tue Mar  6 06:49:24 2012
+ * Fri Apr 20 10:54:48 2012
  */
 #define AUTOCONF_INCLUDED
 #define CONFIG_IP6_NF_MATCH_AH 1
@@ -381,6 +381,7 @@
 #define CONFIG_EPOLL 1
 #define CONFIG_USB_ANDROID_ECM 1
 #define CONFIG_QSD_SVS 1
+#define CONFIG_FORCE_FAST_CHARGE 1
 #define CONFIG_NETFILTER_XT_MATCH_COMMENT 1
 #define CONFIG_NET 1
 #define CONFIG_HTC_ACOUSTIC_QSD 1
