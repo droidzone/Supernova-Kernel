@@ -51,6 +51,10 @@
 #endif
 #include <mach/clk.h>
 
+#ifdef CONFIG_FORCE_FAST_CHARGE
+#include <linux/fastchg.h>
+#endif
+
 static const char driver_name[] = "msm72k_udc";
 
 /* #define DEBUG */
@@ -315,6 +319,19 @@ int usb_register_notifier(struct t_usb_status_notifier *notifier)
 		&g_lh_usb_notifier_list);
 	mutex_unlock(&notify_sem);
 	return 0;
+}
+
+static inline enum chg_type usb_get_chg_type(struct usb_info *ui)
+{
+#ifdef CONFIG_FORCE_FAST_CHARGE
+        if ((readl(USB_PORTSC) & PORTSC_LS) == PORTSC_LS || force_fast_charge == 1) {
+#else
+        if ((readl(USB_PORTSC) & PORTSC_LS) == PORTSC_LS) {
+#endif
+                return USB_CHG_TYPE__WALLCHARGER;
+        } else {
+                return USB_CHG_TYPE__SDP;
+        }
 }
 
 static int usb_ep_get_stall(struct msm_endpoint *ept)
@@ -2076,11 +2093,19 @@ static void charger_detect_by_uart(struct usb_info *ui)
 
 static void charger_detect(struct usb_info *ui)
 {
-	if (!vbus)
-		return;
-	msleep(10);
-	/* detect shorted D+/D-, indicating AC power */
-	if ((readl(USB_PORTSC) & PORTSC_LS) != PORTSC_LS) {
+        enum chg_type chg_type = USB_CHG_TYPE__INVALID;
+        unsigned long flags;
+
+        if (!vbus)
+                return;
+        msleep(10);
+
+        /* detect shorted D+/D-, indicating AC power */
+        spin_lock_irqsave(&ui->lock, flags);
+        chg_type = usb_get_chg_type(ui);
+        spin_unlock_irqrestore(&ui->lock, flags);
+
+        if (chg_type != USB_CHG_TYPE__WALLCHARGER) {
 		printk(KERN_INFO "usb: not AC charger\n");
 		ui->connect_type = CONNECT_TYPE_UNKNOWN;
 		queue_delayed_work(ui->usb_wq, &ui->chg_work,
@@ -2695,18 +2720,23 @@ static DEVICE_ATTR(wakeup, S_IWUSR, 0, usb_remote_wakeup);
 
 static void ac_detect_expired(unsigned long _data)
 {
-	struct usb_info *ui = (struct usb_info *) _data;
-	u32 delay = 0;
+        struct usb_info *ui = (struct usb_info *) _data;
+        enum chg_type chg_type = USB_CHG_TYPE__INVALID;
+        unsigned long flags;
+        u32 delay = 0;
 
-	printk(KERN_INFO "%s: count = %d, connect_type = 0x%04x\n", __func__,
-			ui->ac_detect_count, ui->connect_type);
+        USB_INFO("%s: count = %d, connect_type = %d\n", __func__,
+                        ui->ac_detect_count, ui->connect_type);
 
-	if (ui->connect_type == CONNECT_TYPE_USB || ui->ac_detect_count >= 3)
-		return;
+        if (ui->connect_type == CONNECT_TYPE_USB || ui->ac_detect_count >= 3)
+                return;
 
-	/* detect shorted D+/D-, indicating AC power */
-	if ((readl(USB_PORTSC) & PORTSC_LS) != PORTSC_LS) {
+        /* detect shorted D+/D-, indicating AC power */
+        spin_lock_irqsave(&ui->lock, flags);
+        chg_type = usb_get_chg_type(ui);
+        spin_unlock_irqrestore(&ui->lock, flags);
 
+        if (chg_type != USB_CHG_TYPE__WALLCHARGER) {
 		/* Some carkit can't be recognized as AC mode.
 		 * Add SW solution here to notify battery driver should
 		 * work as AC charger when car mode activated.
