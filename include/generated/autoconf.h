@@ -1,7 +1,7 @@
 /*
  * Automatically generated C config: don't edit
  * Linux kernel version: 2.6.35.10
- * Fri Apr 20 10:54:48 2012
+ * Tue Apr 24 07:09:45 2012
  */
 #define AUTOCONF_INCLUDED
 #define CONFIG_IP6_NF_MATCH_AH 1
@@ -64,6 +64,7 @@
 #define CONFIG_XFRM_IPCOMP 1
 #define CONFIG_CRYPTO_RNG2 1
 #define CONFIG_NETFILTER_NETLINK_QUEUE 1
+#define CONFIG_TUN_MODULE 1
 #define CONFIG_USB_OTG_UTILS 1
 #define CONFIG_DM_CRYPT 1
 #define CONFIG_REED_SOLOMON_ENC8 1
@@ -467,7 +468,7 @@
 #define CONFIG_MSM_CAMERA 1
 #define CONFIG_DEBUG_KERNEL 1
 #define CONFIG_COMPAT_BRK 1
-#define CONFIG_LOCALVERSION "_No2way_powersavev4"
+#define CONFIG_LOCALVERSION "_fastcharge"
 #define CONFIG_CRYPTO 1
 #define CONFIG_SCHED_DEBUG 1
 #define CONFIG_BTRFS_FS_MODULE 1
